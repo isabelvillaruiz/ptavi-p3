@@ -1,48 +1,56 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -
 
+import sys
+import json
+from smallsmilhandler import SmallSMILHandler
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
-from smallsmilhandler import SmallSMILHandler
 from urllib.request import urlretrieve
-import json
-import sys
 
-def Create_JSON(list):
-    with open(sys.argv[1][:-5]+".json",'w') as outfile:
-        json.dump(list,outfile,indent=4,separators=(',' , ': '))
-    
-def show(document):
-    list=""
-    for line in document:
-        for name in line:
-            list = list + name #+ "\t"            
-            for keepR in line[name]:
-                list = list + "\t" + keepR + ' = ' + '"' + line[name][keepR] + '"'
-            list += "\n"
-    print(list)
-                
 
-def downl(document):
-    for line in document:
-        for name in line:
-            for keepR in line[name]:
-                if line[name][keepR][0:7] == "http://":
-                    print(line[name][keepR])                    
-                    urlretrieve(line[name][keepR])
-                    
-                
-                
-                
+class KaraokeLocal(SmallSMILHandler):
+    def __init__(self, documento):
+        parser = make_parser()
+        cHandler = SmallSMILHandler()
+        parser.setContentHandler(cHandler)
+        parser.parse(open(documento))
+        self.Lista = cHandler.get_tags()
+
+    def do_local(self):
+        for line in self.Lista:
+            for n in line:
+                for kR in line[n]:
+                    if line[n][kR][0:7] == "http://":
+                        urlretrieve(line[n][kR])
+
+    def to_json(self, File, File_Name=""):
+        if File_Name:
+            File = File_Name
+        json_file = open(File, "w")
+        json.dump(self.Lista, json_file, separators=(',', ': '), indent=4)
+        json_file.close()
+
+    def __str__(self):
+        list = ""
+        for line in self.Lista:
+            for n in line:
+                list = list + n
+                for kR in line[n]:
+                    list = list + "\t" + kR + ' = ' + '"' + line[n][kR] + '"'
+                list += "\n"
+        print(list)
 
 if __name__ == "__main__":
+    try:
+        documento = sys.argv[1]
+        Doc = KaraokeLocal(documento)
+    except:
+        sys.exit("Usage: python3 karaoke.py file.smil")
 
-    document = sys.argv[1]
-    parser = make_parser()
-    cHandler = SmallSMILHandler()
-    parser.setContentHandler(cHandler)
-    parser.parse(open(document))
-    print(cHandler.get_tags())
-    show(cHandler.get_tags())
-    downl(cHandler.get_tags())
-    Create_JSON(cHandler.get_tags())
+    Doc_Json = sys.argv[1][:-5] + ".json"
+    Doc.__str__()
+    Doc.to_json(Doc_Json)
+    Doc.do_local()
+    Doc.to_json(Doc_Json, "local.json")
+Doc.__str__()
